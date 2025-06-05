@@ -106,6 +106,8 @@ export class HelmetDetectionRabbitMQDAL {
   private static readonly PROCESSING_RESULTS_QUEUE = 'helmet_detection_processing_results_queue';
 
   public static async initialize(): Promise<void> {
+    await RabbitMQUtils.initialize(config.RABBITMQ_URL);
+
     await RabbitMQUtils.ensureExchange(this.IMAGE_PROCESSING_EXCHANGE);
 
     await RabbitMQUtils.ensureExchange(this.PROCESSING_RESULTS_EXCHANGE);

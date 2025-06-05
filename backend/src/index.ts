@@ -1,7 +1,7 @@
 import { app } from './app';
 import { config } from './config/env';
-import { exampleFlowMongoDAL, exampleFlowRabbitMQDAL } from './flows/example-flow/dal';
-import { exampleFlowConsumers } from './flows/example-flow/consumers';
+// import { exampleFlowMongoDAL, exampleFlowRabbitMQDAL } from './flows/example-flow/dal';
+// import { exampleFlowConsumers } from './flows/example-flow/consumers';
 import { helmetDetectionMongoDAL, helmetDetectionRabbitMQDAL } from './flows/helmet-detection/dal';
 import { helmetDetectionConsumers } from './flows/helmet-detection/consumers';
 
@@ -31,15 +31,15 @@ const startServer = async () => {
     );
 
     // Initialize MongoDB DALs
-    await exampleFlowMongoDAL.initialize();
+    // await exampleFlowMongoDAL.initialize();
     await helmetDetectionMongoDAL.initialize();
 
     // Initialize RabbitMQ DALs
-    await exampleFlowRabbitMQDAL.initialize();
+    // await exampleFlowRabbitMQDAL.initialize();
     await helmetDetectionRabbitMQDAL.initialize();
 
     // Initialize consumers
-    await exampleFlowConsumers.startConsuming();
+    // await exampleFlowConsumers.startConsuming();
     await helmetDetectionConsumers.startConsuming();
 
     const server = app.listen(config.PORT);
