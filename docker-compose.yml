@@ -47,6 +47,77 @@ services:
     networks:
       - example-network
 
+  backend:
+    build: ./backend
+    container_name: helmet-backend
+    restart: unless-stopped
+    environment:
+      - PORT=3000
+      - MONGODB_URI=mongodb://admin:password@mongodb:27017/helmet_detection?authSource=admin
+      - MONGODB_DB_NAME=helmet_detection
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_USE_SSL=false
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_REGION=us-east-1
+      - JWT_SECRET=your-secret-key-here
+      - SERVICE_NAME=helmet-backend
+      - ENV=development
+      - LOGTAIL_SOURCE_TOKEN=dummy-token
+      - LOGTAIL_ENDPOINT=http://localhost
+      - LOG_LEVEL=info
+      - LOG_MAX_LENGTH=1000
+      - PACKAGE_PREFIX=[HELMET-BACKEND]
+      - LOGSTASH_URL=http://localhost
+      - APM_SERVER_URL=http://localhost
+      - OPENAI_API_KEY=dummy-key
+      - GOOGLE_CLIENT_SECRET=dummy-secret
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mongodb
+      - rabbitmq
+      - minio
+    networks:
+      - example-network
+
+  ai-service:
+    build: ./ai-service
+    container_name: helmet-ai-service
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=guest
+      - RABBITMQ_PASSWORD=guest
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET=helmet-detection
+      - MODEL_PATH=./models/yolov8n.pt
+      - CONFIDENCE_THRESHOLD=0.5
+      - IOU_THRESHOLD=0.4
+    depends_on:
+      - rabbitmq
+      - minio
+    networks:
+      - example-network
+
+  client:
+    build: ./client
+    container_name: helmet-client
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000/api
+    depends_on:
+      - backend
+    networks:
+      - example-network
+
 volumes:
   mongodb_data:
   rabbitmq_data:

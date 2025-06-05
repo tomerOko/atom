@@ -1,0 +1,64 @@
+build, run, and test the sytem!
+i expect of a lot of new files, infra updates, runing, testing
+it is a very big task, but keep it simple!
+good luck
+
+Your task is to create this project description in this existing project bilerplate (create the backend flows in the ‘backend’ folder,  the client application in the ‘client’ folder, and add new folder for the image proccessing ai models  and services)
+
+
+Code & Model Use:
+•	You are encouraged to reuse public models and open-source code as much as possible - Less code, well integrated, is better.
+Design Prencipals 
+•	Clear and functional full-stack integration.
+•	Smart use of AI and existing tools.
+•	 Clean, understandable code and structure.
+•	Good documentation and reasoning.
+
+🧠 Home Task: "Spot the Helmet!"
+
+Background
+You’re building a simple internal web app for a construction company to verify whether workers
+in site photos are wearing helmets. The company wants a lightweight, prototype-quality solution
+that includes image upload, processing, visualization, and a simple API + frontend.
+
+there is no need for users management. For no build the application like there will only be one user using it.
+
+✅ Objectives
+1. Frontend (React)
+•	Upload page:
+o	Drag-and-drop image upload, with some notification about successful upload.
+•	Result page:
+o	Preview of the uploaded image.
+o	Display of processed results: overlaid boxes to mark each detected persons with helmets (blue border box) and without (red border box)
+o	A display of the metadata
+•	 Basic loading and error handling.
+
+2. Backend (Node.js + Express)
+•	Accept image uploads via REST API.
+•	Accept ‘get-all-images’ request. return
+o	Original image
+o	Annotated image (with helmets shown) (if 
+o	
+•	store images in minio
+•	store image metadata in mongodb
+•	publish event to trigger the processing microservice.
+•	Listen to published processing result events from the ‘Image Analysis’
+
+3. Image Analysis - a python AI microservice (Python + OpenCV + AI) 
+•	Task:
+o	Detect people, helmets, and if the helmet is warn properly.
+•	Key technologies:
+o	OpenCV preprocessing (resizing, grayscale, etc.).
+o	Pretrained models (e.g., YOLOv5/YOLOv8 or similar).
+•	Notes:
+o	Try to use know and simple python image processing libraries.
+o	End result after proccessing: the service is expected to save the new images to minio, and publish event with: image filename, list of bounding boxes, confidence scores, helmet status.
+
+4. DevOps (Docker + Setup)
+•	Containerize the app using Docker.
+•	Use docker-compose to run:
+o	Backend.
+o	Python processor (Image Analysis).
+•	GitHub Actions for linting/tests/build
+•	Include setup steps (e.g. README.md instructions).
+•	Explanations of design choices (DESIGN.md file)

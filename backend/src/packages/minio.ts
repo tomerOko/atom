@@ -57,7 +57,7 @@ export class MinioUtils {
     }
   }
 
-  private static async createBucketIfNotExist(): Promise<void> {
+  private static async createBucketIfNotExist(bucketName?: string): Promise<void> {
     if (!this.isConnected || !this.client) {
       await this.connect();
     }
@@ -66,16 +66,18 @@ export class MinioUtils {
       throw new Error('MinIO client not available');
     }
 
+    const bucket = bucketName || this.bucketName;
+
     try {
-      const exists = await this.client.bucketExists(this.bucketName);
+      const exists = await this.client.bucketExists(bucket);
       if (!exists) {
-        await this.client.makeBucket(this.bucketName, this.region);
-        console.log(`Bucket ${this.bucketName} created`);
+        await this.client.makeBucket(bucket, this.region);
+        console.log(`Bucket ${bucket} created`);
       } else {
-        console.log(`Bucket ${this.bucketName} already exists`);
+        console.log(`Bucket ${bucket} already exists`);
       }
     } catch (error) {
-      console.error(`Error creating bucket ${this.bucketName}:`, error);
+      console.error(`Error creating bucket ${bucket}:`, error);
       throw error;
     }
   }
@@ -100,6 +102,35 @@ export class MinioUtils {
       return id;
     } catch (error) {
       console.error(`Error uploading file ${id} to ${this.bucketName}:`, error);
+      throw error;
+    }
+  }
+
+  // New method for custom bucket and filename uploads
+  public static async uploadObject(
+    bucketName: string,
+    filename: string,
+    data: Buffer
+  ): Promise<string> {
+    if (!this.isConnected || !this.client) {
+      await this.connect();
+    }
+
+    if (!this.client) {
+      throw new Error('MinIO client not available');
+    }
+
+    const readableData = Readable.from(data);
+
+    try {
+      await this.createBucketIfNotExist(bucketName);
+
+      await this.client.putObject(bucketName, filename, readableData);
+
+      console.log(`File ${filename} uploaded to ${bucketName}`);
+      return filename;
+    } catch (error) {
+      console.error(`Error uploading file ${filename} to ${bucketName}:`, error);
       throw error;
     }
   }
@@ -146,6 +177,28 @@ export class MinioUtils {
       );
     } catch (error) {
       console.error(`Error getting URL for file ${id} from ${this.bucketName}:`, error);
+      throw error;
+    }
+  }
+
+  // New method for getting presigned URLs for custom buckets
+  public static async getPresignedUrl(
+    bucketName: string,
+    filename: string,
+    expiryInSeconds: number = 60 * 60
+  ): Promise<string> {
+    if (!this.isConnected || !this.client) {
+      await this.connect();
+    }
+
+    if (!this.client) {
+      throw new Error('MinIO client not available');
+    }
+
+    try {
+      return await this.client.presignedGetObject(bucketName, filename, expiryInSeconds);
+    } catch (error) {
+      console.error(`Error getting URL for file ${filename} from ${bucketName}:`, error);
       throw error;
     }
   }
