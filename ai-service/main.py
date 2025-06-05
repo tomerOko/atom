@@ -7,6 +7,7 @@ from helmet_detector import HelmetDetector
 from message_handler import MessageHandler
 from storage_service import StorageService
 from config import *
+from datetime import datetime, UTC
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -70,6 +71,7 @@ class HelmetDetectionService:
         try:
             image_filename = message.get('image_filename')
             image_id = message.get('image_id')
+            timestamp = message.get('timestamp')
             
             if not image_filename:
                 raise ValueError("No image filename provided in message")
@@ -93,7 +95,7 @@ class HelmetDetectionService:
                 if not upload_success:
                     logger.warning(f"Failed to upload annotated image: {annotated_filename}")
 
-                # Prepare result message
+                # Prepare result message according to integration guide format
                 result = {
                     'image_id': image_id,
                     'image_filename': image_filename,
@@ -103,8 +105,7 @@ class HelmetDetectionService:
                     'people_with_helmets': processing_result['people_with_helmets'],
                     'compliance_rate': processing_result['compliance_rate'],
                     'detections': processing_result['detections'],
-                    'timestamp': message.get('timestamp'),
-                    'processing_time': None  # Could add timing if needed
+                    'timestamp': datetime.now(UTC).isoformat()
                 }
 
             else:
@@ -119,7 +120,7 @@ class HelmetDetectionService:
                     'people_with_helmets': 0,
                     'compliance_rate': 0,
                     'detections': [],
-                    'timestamp': message.get('timestamp')
+                    'timestamp': datetime.now(UTC).isoformat()
                 }
 
             # Cleanup temporary files
@@ -142,7 +143,7 @@ class HelmetDetectionService:
                 'people_with_helmets': 0,
                 'compliance_rate': 0,
                 'detections': [],
-                'timestamp': message.get('timestamp')
+                'timestamp': datetime.now(UTC).isoformat()
             }
 
     def run(self):

@@ -21,6 +21,12 @@ MODEL_PATH = os.getenv('MODEL_PATH', './models/yolov8n.pt')
 CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', '0.5'))
 IOU_THRESHOLD = float(os.getenv('IOU_THRESHOLD', '0.4'))
 
-# Queue Names
-IMAGE_PROCESSING_QUEUE = 'image_processing'
-PROCESSING_RESULTS_QUEUE = 'processing_results' 
+# RabbitMQ Exchange and Queue Configuration
+# Exchange to consume image processing requests from
+IMAGE_PROCESSING_EXCHANGE = 'helmet_detection_image_processing_exchange'
+# Exchange to publish processing results to
+PROCESSING_RESULTS_EXCHANGE = 'ai_service_processing_results_exchange'
+# Our own queue for consuming processing requests
+AI_SERVICE_QUEUE = 'ai_service_image_processing_queue'
+# Routing key - using catch-all as specified
+ROUTING_KEY = '#' 

@@ -2,6 +2,7 @@ import json
 import pika
 import logging
 from typing import Dict, Callable
+from datetime import datetime
 from config import *
 
 logging.basicConfig(level=logging.INFO)
@@ -15,7 +16,7 @@ class MessageHandler:
 
     def connect(self):
         """
-        Establish connection to RabbitMQ
+        Establish connection to RabbitMQ and setup exchanges
         """
         try:
             credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
@@ -27,11 +28,29 @@ class MessageHandler:
             self.connection = pika.BlockingConnection(parameters)
             self.channel = self.connection.channel()
             
-            # Declare queues
-            self.channel.queue_declare(queue=IMAGE_PROCESSING_QUEUE, durable=True)
-            self.channel.queue_declare(queue=PROCESSING_RESULTS_QUEUE, durable=True)
+            # Declare exchanges as topic exchanges with durable=True
+            self.channel.exchange_declare(
+                exchange=IMAGE_PROCESSING_EXCHANGE,
+                exchange_type='topic',
+                durable=True
+            )
+            self.channel.exchange_declare(
+                exchange=PROCESSING_RESULTS_EXCHANGE,
+                exchange_type='topic',
+                durable=True
+            )
             
-            logger.info("Successfully connected to RabbitMQ")
+            # Declare our own queue for consuming processing requests
+            self.channel.queue_declare(queue=AI_SERVICE_QUEUE, durable=True)
+            
+            # Bind our queue to the image processing exchange with catch-all routing key
+            self.channel.queue_bind(
+                exchange=IMAGE_PROCESSING_EXCHANGE,
+                queue=AI_SERVICE_QUEUE,
+                routing_key=ROUTING_KEY
+            )
+            
+            logger.info("Successfully connected to RabbitMQ and setup exchanges")
             
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
@@ -39,14 +58,19 @@ class MessageHandler:
 
     def publish_result(self, result: Dict) -> None:
         """
-        Publish processing result to the results queue
+        Publish processing result to the results exchange with proper message wrapping
         """
         try:
-            message = json.dumps(result)
+            # Wrap payload in required format with data field
+            message = {
+                "data": result
+            }
+            
+            message_body = json.dumps(message)
             self.channel.basic_publish(
-                exchange='',
-                routing_key=PROCESSING_RESULTS_QUEUE,
-                body=message,
+                exchange=PROCESSING_RESULTS_EXCHANGE,
+                routing_key=ROUTING_KEY,  # Using catch-all routing key
+                body=message_body,
                 properties=pika.BasicProperties(
                     delivery_mode=2,  # Make message persistent
                 )
@@ -63,12 +87,20 @@ class MessageHandler:
         """
         def process_message(ch, method, properties, body):
             try:
-                # Parse message
+                # Parse message and extract data payload
                 message = json.loads(body.decode('utf-8'))
-                logger.info(f"Received processing request: {message}")
+                
+                # Extract the actual payload from the data field
+                if 'data' in message:
+                    data = message['data']
+                else:
+                    # Fallback for messages not wrapped in data field
+                    data = message
+                
+                logger.info(f"Received processing request: {data}")
                 
                 # Process the image
-                result = processing_callback(message)
+                result = processing_callback(data)
                 
                 # Publish result
                 self.publish_result(result)
@@ -84,7 +116,7 @@ class MessageHandler:
         # Configure consumer
         self.channel.basic_qos(prefetch_count=1)
         self.channel.basic_consume(
-            queue=IMAGE_PROCESSING_QUEUE,
+            queue=AI_SERVICE_QUEUE,
             on_message_callback=process_message
         )
 

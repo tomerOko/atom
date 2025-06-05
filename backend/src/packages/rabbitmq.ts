@@ -1,6 +1,5 @@
 import amqp, { Channel, ChannelModel, ConsumeMessage } from 'amqplib';
 import { appLogger, LogAllMethods } from './logger';
-import { getTransactionId, setTransactionId } from './logger/async-hooks';
 
 @LogAllMethods()
 export class RabbitMQUtils {

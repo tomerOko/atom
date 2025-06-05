@@ -112,8 +112,13 @@ class HelmetDetector:
         results = []
         
         for person in people:
+            # Convert bbox from [x1, y1, x2, y2] to [x, y, width, height] format
+            x1, y1, x2, y2 = person['bbox']
+            width = x2 - x1
+            height = y2 - y1
+            
             person_result = {
-                'bbox': person['bbox'],
+                'bbox': [x1, y1, width, height],
                 'confidence': person['confidence'],
                 'has_helmet': False,
                 'helmet_confidence': 0.0,
@@ -150,7 +155,9 @@ class HelmetDetector:
         image = cv2.imread(image_path)
         
         for result in analysis_results:
-            x1, y1, x2, y2 = result['bbox']
+            # Convert bbox from [x, y, width, height] to [x1, y1, x2, y2] for drawing
+            x, y, width, height = result['bbox']
+            x1, y1, x2, y2 = x, y, x + width, y + height
             
             # Choose color based on helmet status
             if result['has_helmet']:
