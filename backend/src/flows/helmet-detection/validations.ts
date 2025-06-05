@@ -110,7 +110,7 @@ export const processingResultEventSchema = z.object({
   people_with_helmets: z.number(),
   compliance_rate: z.number(),
   detections: z.array(eventDetectionSchema),
-  error: z.union([z.string(), z.null()]),
+  error: z.union([z.string(), z.null()]).optional(),
   timestamp: z.string(),
 });
 export type ProcessingResultEvent = z.infer<typeof processingResultEventSchema>;
