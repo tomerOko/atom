@@ -39,7 +39,7 @@ const baseImageSchema = z.object({
   peopleWithHelmets: z.number().optional(),
   complianceRate: z.number().optional(),
   detections: z.array(detectionSchema).optional(),
-  error: z.union([z.string(), z.null()]),
+  error: z.union([z.string(), z.null()]).optional(),
   processedAt: z.date().optional(),
 });
 
