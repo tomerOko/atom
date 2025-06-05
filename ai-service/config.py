@@ -1,7 +1,8 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load environment variables from local.env file for development
+load_dotenv('local.env')
 
 # RabbitMQ Configuration
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
