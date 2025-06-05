@@ -1,0 +1,339 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# TypeScript Microservices Architecture Rules
+
+## Project Structure
+
+### Root Structure
+
+- Each business flow/domain should be organized in its own folder under `src/flows/`
+- Each flow folder contains: `routes.ts`, `controller.ts`, `service.ts`, `dal.ts`, `validations.ts`, `consumers.ts` (if needed)
+- Shared utilities remain in `src/utils/`, packages in `src/packages/`, config in `src/config/`
+- Main application files: `src/index.ts`, `src/app.ts`
+
+### Flow-Based Organization
+
+```
+src/
+├── flows/
+│   ├── users/
+│   │   ├── routes.ts
+│   │   ├── controller.ts
+│   │   ├── service.ts
+│   │   ├── dal.ts
+│   │   ├── validations.ts
+│   │   └── consumers.ts
+│   ├── orders/
+│   │   ├── routes.ts
+│   │   ├── controller.ts
+│   │   ├── service.ts
+│   │   ├── dal.ts
+│   │   └── validations.ts
+│   └── ...
+├── packages/
+├── utils/
+├── config/
+├── middleware/
+├── index.ts
+└── app.ts
+```
+
+## Code Standards
+
+### 1. File Structure & Naming
+
+- Use kebab-case for directories and camelCase for files
+- Controller classes should be named `{Flow}Controller`
+- Service classes should be named `{Flow}Service`
+- DAL classes should be named `{Flow}DAL`
+- Export singletons: `export const userService = new UserService()`
+
+### 2. TypeScript Standards
+
+- **Never modify tsconfig.json** to solve TypeScript errors
+- Always use strict typing with proper interfaces/types
+- **!important** Use Zod schemas for all external contracts (API, events, database) - meaning in each of this cases a validation schema and iffered shcema are expected of you!
+- Export TypeScript types from validation schemas: `export type User = z.infer<typeof userSchema>`
+
+### 3. Class-Based Architecture
+
+- Implement controllers and services as classes
+- Use `@LogAllMethods()` decorator on all classes for automatic logging
+- Use dependency injection pattern for class relationships
+- Export as singletons for simplicity
+
+### 4. Validation (CRITICAL)
+
+- **ALL external contracts MUST use Zod validation**:
+  - HTTP requests and responses
+  - RabbitMQ published and consumed events
+  - Database operations (optional but recommended)
+- Always use the `validateSchema()` utility function
+- Schema changes require explicit human approval before implementation
+- Group schemas by type in validations.ts:
+
+  ```typescript
+  // HTTP Request/Response Schemas
+  export const createUserRequestSchema = z.object({...});
+
+  // Event Schemas (Published)
+  export const userCreatedEventSchema = z.object({...});
+
+  // Event Schemas (Consumed)
+  export const paymentProcessedEventSchema = z.object({...});
+
+  // Database Schemas
+  export const userDatabaseSchema = z.object({...});
+  ```
+
+### 5. Database Standards (MongoDB)
+
+- Use MongoDB native driver, **NOT Mongoose**
+- Each flow has its own MongoDB collection
+- Implement proper indexing in DAL initialization
+- Use manual collection verification and creation
+- Pattern:
+  ```typescript
+  class UserDAL {
+    private readonly dbName = 'app_db';
+    private readonly collectionName = 'users';
+
+    public async initialize(): Promise<void> {
+      // Initialize connection, create indexes
+    }
+
+    private getCollection() {
+      // Return collection with error handling
+    }
+  }
+  ```
+
+### 6. RabbitMQ Standards
+
+- Define exchanges and queues in DAL constructor
+- Always validate events using Zod schemas
+- Use proper exchange/queue binding
+- Pattern:
+  ```typescript
+  class UserDAL {
+    private readonly USER_EXCHANGE = 'user_exchange';
+    private readonly USER_QUEUE = 'user_service_queue';
+
+    public async publishUserCreated(data: UserCreatedEvent): Promise<void> {
+      validateSchema(userCreatedEventSchema, data);
+      await RabbitMQUtils.publish(this.USER_EXCHANGE, data);
+    }
+  }
+  ```
+
+### 7. Controller Standards
+
+- Implement HTTP methods as class methods
+- Always validate requests and responses using schemas
+- Handle errors with proper HTTP status codes
+- Use async/await consistently
+- Pattern:
+  ```typescript
+  @LogAllMethods()
+  export class UserController {
+    public async createUser(req: Request, res: Response): Promise<void> {
+      try {
+        const validatedRequest = validateSchema(createUserRequestSchema, req.body);
+        const user = await userService.createUser(validatedRequest);
+        const response = { data: user };
+        const validatedResponse = validateSchema(createUserResponseSchema, response);
+        res.status(201).json(validatedResponse);
+      } catch (error) {
+        res.status(500).json({
+          error: 'Internal Server Error',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+  }
+  ```
+
+### 8. Service Standards
+
+- **ALL business logic goes in service classes**
+- Services should be pure business logic - no HTTP concerns
+- Use other services through dependency injection
+- Handle business validation and orchestration
+- Pattern:
+  ```typescript
+  @LogAllMethods()
+  class UserService {
+    public async createUser(userData: CreateUserRequest): Promise<User> {
+      // Business logic here
+      // Call DAL methods
+      // Orchestrate with other services
+    }
+  }
+  ```
+
+### 9. Route Standards
+
+- Define all routes in a single `routes.ts` file per flow
+- Use Express Router
+- Pattern:
+
+  ```typescript
+  export const userRouter = Router();
+  const controller = new UserController();
+
+  userRouter.post('/api/users', controller.createUser);
+  ```
+
+### 10. Error Handling
+
+- Use centralized error handling middleware
+- Create custom AppError classes for business errors
+- Always log errors with structured logging
+- Return consistent error response format
+
+### 11. Environment Configuration
+
+- Define all environment variables in `src/config/envs.ts`
+- Use Zod validation for environment variables
+- **Never modify the envs.ts structure** - only update content
+
+### 12. Logging Standards
+
+- Use `@LogAllMethods()` decorator on all classes
+- Use structured logging with the appLogger
+- Include relevant context in log messages
+- Log at appropriate levels (error, warn, info, debug)
+
+### 13. Authentication & Authorization
+
+- Use JWT middleware consistently
+- Extract user context using `JwtUtils.getUserId()`
+- Apply authentication middleware to protected routes
+
+### 14. Package Management
+
+- Reusable utilities go in `src/packages/`
+- Each package should be self-contained
+- Export clean interfaces from packages
+- Examples: jwt, minio, rabbitmq, logger
+
+### 15. Flow Integration in Main App
+
+- Import all flow routers in `src/app.ts`
+- Initialize all flow DALs in `src/index.ts`
+- Set up all flow consumers in main consumers setup
+
+## Development Practices
+
+### 1. Keep It Simple
+
+- Avoid over-engineering and buzzword technologies
+- Focus on clarity and maintainability
+- Prefer explicit over clever code
+
+### 2. No Testing Infrastructure
+
+- Skip test files and testing frameworks for now
+- Focus on runtime validation and error handling
+
+### 3. Validation First
+
+- Always define Zod schemas before implementing functionality
+- Treat validation schemas as contracts
+- Never skip validation for external data
+
+### 4. Resource Management
+
+- Ask for explicit permission before adding new external resources
+- When resources are approved, provide copy-paste Pulumi configuration
+- Include service name, resource type, and configuration details
+
+### 5. Consistency
+
+- Follow established patterns consistently across all flows
+- Use the same error handling patterns
+- Maintain consistent logging approaches
+- Use the same validation patterns
+
+## Example Flow Implementation
+
+### User Flow Example
+
+```typescript
+// flows/users/validations.ts
+export const createUserRequestSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(1),
+});
+export const userDatabaseSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  name: z.string(),
+  createdAt: z.number(),
+});
+
+// flows/users/dal.ts
+@LogAllMethods()
+class UserDAL {
+  private readonly dbName = 'app_db';
+  private readonly collectionName = 'users';
+
+  public async createUser(user: User): Promise<User> {
+    const collection = this.getCollection();
+    await collection.insertOne(user);
+    return user;
+  }
+}
+export const userDAL = new UserDAL();
+
+// flows/users/service.ts
+@LogAllMethods()
+class UserService {
+  public async createUser(userData: CreateUserRequest): Promise<User> {
+    const user = {
+      id: uuidv4(),
+      ...userData,
+      createdAt: Date.now(),
+    };
+    return await userDAL.createUser(user);
+  }
+}
+export const userService = new UserService();
+
+// flows/users/controller.ts
+@LogAllMethods()
+export class UserController {
+  public async createUser(req: Request, res: Response): Promise<void> {
+    try {
+      const validatedRequest = validateSchema(createUserRequestSchema, req.body);
+      const user = await userService.createUser(validatedRequest);
+      const response = { data: user };
+      const validatedResponse = validateSchema(createUserResponseSchema, response);
+      res.status(201).json(validatedResponse);
+    } catch (error) {
+      res.status(500).json({
+        error: 'Internal Server Error',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+}
+
+// flows/users/routes.ts
+export const userRouter = Router();
+const controller = new UserController();
+
+userRouter.post('/api/users',  controller.createUser);
+```
+
+## Key Principles
+
+1. **Validation is a contract** - never skip or modify without approval
+2. **Business logic belongs in services** - keep controllers thin
+3. **Each flow is self-contained** - minimal cross-flow dependencies
+4. **Consistency over cleverness** - follow established patterns
+5. **Error handling is crucial** - always handle and log errors properly
+6. **Keep it simple** - avoid unnecessary complexity and abstractions

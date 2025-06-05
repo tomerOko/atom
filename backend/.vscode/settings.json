@@ -1,0 +1,14 @@
+{
+    "workbench.colorCustomizations": {
+        "activityBar.background": "#46175B",
+        "titleBar.activeBackground": "#62217F",
+        "titleBar.activeForeground": "#FCF9FD"
+    },
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+    "eslint.validate": ["typescript", "javascript"],
+    "typescript.preferences.importModuleSpecifier": "relative"
+}
