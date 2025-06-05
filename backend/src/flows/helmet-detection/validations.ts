@@ -39,7 +39,7 @@ const baseImageSchema = z.object({
   peopleWithHelmets: z.number().optional(),
   complianceRate: z.number().optional(),
   detections: z.array(detectionSchema).optional(),
-  error: z.string().optional(),
+  error: z.union([z.string(), z.null()]),
   processedAt: z.date().optional(),
 });
 
@@ -110,7 +110,7 @@ export const processingResultEventSchema = z.object({
   people_with_helmets: z.number(),
   compliance_rate: z.number(),
   detections: z.array(eventDetectionSchema),
-  error: z.string().optional(),
+  error: z.union([z.string(), z.null()]),
   timestamp: z.string(),
 });
 export type ProcessingResultEvent = z.infer<typeof processingResultEventSchema>;

@@ -33,6 +33,7 @@ class HelmetDetectionService {
         size: file.size,
         uploadedAt: new Date(),
         processingStatus: 'pending',
+        error: null,
       };
 
       const imageId = await helmetDetectionMongoDAL.createImageRecord(imageRecord);

@@ -16,7 +16,7 @@ class HelmetDetectionConsumers {
   }
 
   private async handleProcessingResultMessage(data: any): Promise<void> {
-    const validatedEvent = validateSchema(processingResultEventSchema, data);
+    const validatedEvent = validateSchema(processingResultEventSchema, data.data);
     await helmetDetectionService.handleProcessingResult(validatedEvent);
   }
 }
