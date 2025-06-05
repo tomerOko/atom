@@ -92,7 +92,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [loadingImages, setLoadingImages] = useState<Record<string, boolean>>({});
 
-  const fetchImageUrl = async (imageId: string) => {
+  const fetchImageUrl = async (imageId: string, processingStatus: string) => {
     if (imageUrls[imageId] || loadingImages[imageId]) return;
 
     setLoadingImages(prev => ({ ...prev, [imageId]: true }));
@@ -101,8 +101,18 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick
       const response = await fetch(`${API_BASE_URL}/helmet-detection/images/${imageId}`);
       const result = await response.json();
 
-      if (result.success && result.data?.originalImageUrl) {
-        setImageUrls(prev => ({ ...prev, [imageId]: result.data.originalImageUrl }));
+      if (result.success && result.data) {
+        // For completed images, prefer annotated image if available, otherwise use original
+        // For non-completed images, always use original
+        let imageUrl = result.data.originalImageUrl;
+
+        if (processingStatus === 'completed' && result.data.annotatedImageUrl) {
+          imageUrl = result.data.annotatedImageUrl;
+        }
+
+        if (imageUrl) {
+          setImageUrls(prev => ({ ...prev, [imageId]: imageUrl }));
+        }
       }
     } catch (error) {
       console.error('Error fetching image URL:', error);
@@ -115,7 +125,7 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick
     // Fetch URLs for all images
     images.forEach(image => {
       if (image._id) {
-        fetchImageUrl(image._id);
+        fetchImageUrl(image._id, image.processingStatus);
       }
     });
   }, [images]);

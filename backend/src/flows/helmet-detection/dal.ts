@@ -2,7 +2,12 @@ import { Collection, MongoClient, ObjectId } from 'mongodb';
 import { config } from '../../config/env';
 import { LogAllMethods } from '../../packages/logger';
 import { RabbitMQUtils } from '../../packages/rabbitmq';
-import { ImageRecord, ProcessingRequestEvent, ProcessingResultEvent } from './validations';
+import {
+  ImageRecord,
+  ProcessingRequestEvent,
+  ProcessingResultEvent,
+  HelmetStatus,
+} from './validations';
 
 @LogAllMethods()
 export class HelmetDetectionMongoDAL {
@@ -78,7 +83,7 @@ export class HelmetDetectionMongoDAL {
       confidence: d.confidence,
       hasHelmet: d.has_helmet,
       helmetConfidence: d.helmet_confidence,
-      status: d.status as 'wearing_helmet' | 'no_helmet',
+      status: d.status as HelmetStatus,
     }));
 
     const updateData: Partial<ImageRecord> = {

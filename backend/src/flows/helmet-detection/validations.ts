@@ -5,7 +5,7 @@ const processingStatusSchema = z.enum(['pending', 'processing', 'completed', 'fa
 
 const bboxSchema = z.tuple([z.number(), z.number(), z.number(), z.number()]);
 
-const helmetStatusSchema = z.enum(['wearing_helmet', 'no_helmet']);
+const helmetStatusSchema = z.enum(['wearing_helmet', 'no_helmet', 'helmet_status_unknown']);
 
 // Detection schemas (API format - camelCase)
 const detectionSchema = z.object({
@@ -114,3 +114,7 @@ export const processingResultEventSchema = z.object({
   timestamp: z.string(),
 });
 export type ProcessingResultEvent = z.infer<typeof processingResultEventSchema>;
+
+// Additional Type Exports
+export type HelmetStatus = z.infer<typeof helmetStatusSchema>;
+export type Detection = z.infer<typeof detectionSchema>;
