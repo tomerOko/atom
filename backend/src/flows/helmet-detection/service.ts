@@ -64,8 +64,29 @@ class HelmetDetectionService {
   public async getAllImages(limit: number = 50, offset: number = 0): Promise<GetImagesResponse> {
     try {
       const result = await helmetDetectionMongoDAL.getAllImageRecords(limit, offset);
+
+      // Generate thumbnail URLs for each image
+      const imagesWithThumbnails = await Promise.all(
+        result.images.map(async image => {
+          try {
+            const thumbnailUrl = await MinioUtils.getPresignedUrl(
+              'helmet-detection',
+              image.filename,
+              3600
+            ); // 1 hour expiry
+            return {
+              ...image,
+              thumbnailUrl,
+            };
+          } catch (error) {
+            appLogger.warn(`Failed to get thumbnail URL for image: ${image.filename}`);
+            return image; // Return without thumbnail URL if failed
+          }
+        })
+      );
+
       return {
-        images: result.images,
+        images: imagesWithThumbnails,
         total: result.total,
       };
     } catch (error) {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import type { ImageRecord } from '../types/helmet-detection';
 
@@ -16,7 +16,7 @@ const Gallery = styled.div`
 const ImageCard = styled.div`
   background: #f7fafc;
   border-radius: 8px;
-  padding: 1rem;
+  overflow: hidden;
   cursor: pointer;
   transition: transform 0.2s;
 
@@ -25,7 +25,29 @@ const ImageCard = styled.div`
   }
 `;
 
+const ImageThumbnail = styled.div`
+  width: 100%;
+  height: 150px;
+  position: relative;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const ThumbnailImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const ThumbnailPlaceholder = styled.div`
+  color: #718096;
+  font-size: 2rem;
+`;
+
 const ImageInfo = styled.div`
+  padding: 1rem;
   font-size: 0.875rem;
   color: #4a5568;
 `;
@@ -64,7 +86,40 @@ const Status = styled.span<{ status: string }>`
   }};
 `;
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 export const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick }) => {
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+  const [loadingImages, setLoadingImages] = useState<Record<string, boolean>>({});
+
+  const fetchImageUrl = async (imageId: string) => {
+    if (imageUrls[imageId] || loadingImages[imageId]) return;
+
+    setLoadingImages(prev => ({ ...prev, [imageId]: true }));
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/helmet-detection/images/${imageId}`);
+      const result = await response.json();
+
+      if (result.success && result.data?.originalImageUrl) {
+        setImageUrls(prev => ({ ...prev, [imageId]: result.data.originalImageUrl }));
+      }
+    } catch (error) {
+      console.error('Error fetching image URL:', error);
+    } finally {
+      setLoadingImages(prev => ({ ...prev, [imageId]: false }));
+    }
+  };
+
+  useEffect(() => {
+    // Fetch URLs for all images
+    images.forEach(image => {
+      if (image._id) {
+        fetchImageUrl(image._id);
+      }
+    });
+  }, [images]);
+
   if (images.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '2rem', color: '#718096' }}>
@@ -77,6 +132,23 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({ images, onImageClick
     <Gallery>
       {images.map(image => (
         <ImageCard key={image._id} onClick={() => onImageClick(image)}>
+          <ImageThumbnail>
+            {imageUrls[image._id!] ? (
+              <ThumbnailImage
+                src={imageUrls[image._id!]}
+                alt={image.originalName}
+                onError={e => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            ) : loadingImages[image._id!] ? (
+              <ThumbnailPlaceholder>⏳</ThumbnailPlaceholder>
+            ) : (
+              <ThumbnailPlaceholder>📸</ThumbnailPlaceholder>
+            )}
+          </ImageThumbnail>
+
           <ImageInfo>
             <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>{image.originalName}</div>
             <div style={{ marginBottom: '0.5rem' }}>
