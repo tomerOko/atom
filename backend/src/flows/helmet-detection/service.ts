@@ -1,18 +1,21 @@
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { MinioUtils } from '../../packages/minio';
-import { appLogger } from '../../packages/logger';
+import { appLogger, LogAllMethods } from '../../packages/logger';
 import { helmetDetectionMongoDAL, helmetDetectionRabbitMQDAL } from './dal';
 import {
   ImageRecord,
-  ProcessingMessage,
-  ProcessingResult,
+  ProcessingRequestEvent,
+  ProcessingResultEvent,
   GetImagesResponse,
-  GetImageResponse,
-} from './types';
+  GetImageByIdResponse,
+  ImageStatsResponse,
+  UploadImageResponse,
+} from './validations';
 
+@LogAllMethods()
 class HelmetDetectionService {
-  async uploadImage(file: Express.Multer.File): Promise<{ imageId: string; message: string }> {
+  public async uploadImage(file: Express.Multer.File): Promise<UploadImageResponse> {
     try {
       // Generate unique filename
       const fileExtension = path.extname(file.originalname);
@@ -35,7 +38,7 @@ class HelmetDetectionService {
       const imageId = await helmetDetectionMongoDAL.createImageRecord(imageRecord);
 
       // Publish processing request
-      const processingMessage: ProcessingMessage = {
+      const processingMessage: ProcessingRequestEvent = {
         image_id: imageId,
         image_filename: filename,
         timestamp: new Date().toISOString(),
@@ -58,7 +61,7 @@ class HelmetDetectionService {
     }
   }
 
-  async getAllImages(limit: number = 50, offset: number = 0): Promise<GetImagesResponse> {
+  public async getAllImages(limit: number = 50, offset: number = 0): Promise<GetImagesResponse> {
     try {
       const result = await helmetDetectionMongoDAL.getAllImageRecords(limit, offset);
       return {
@@ -71,7 +74,7 @@ class HelmetDetectionService {
     }
   }
 
-  async getImageById(id: string): Promise<GetImageResponse> {
+  public async getImageById(id: string): Promise<GetImageByIdResponse> {
     try {
       const image = await helmetDetectionMongoDAL.getImageRecord(id);
 
@@ -113,7 +116,7 @@ class HelmetDetectionService {
     }
   }
 
-  async handleProcessingResult(result: ProcessingResult): Promise<void> {
+  public async handleProcessingResult(result: ProcessingResultEvent): Promise<void> {
     try {
       await helmetDetectionMongoDAL.updateImageProcessingResult(result.image_id, result);
       appLogger.info(`Processed result for image: ${result.image_filename}`);
@@ -123,16 +126,7 @@ class HelmetDetectionService {
     }
   }
 
-  async getImageStats(): Promise<{
-    total: number;
-    pending: number;
-    processing: number;
-    completed: number;
-    failed: number;
-    totalPeople: number;
-    totalCompliant: number;
-    complianceRate: number;
-  }> {
+  public async getImageStats(): Promise<ImageStatsResponse> {
     try {
       // Get all images to calculate stats
       // In a real production system, you'd want to use aggregation queries for better performance
@@ -183,7 +177,7 @@ class HelmetDetectionService {
     }
   }
 
-  validateImageFile(file: Express.Multer.File): { isValid: boolean; error?: string } {
+  public validateImageFile(file: Express.Multer.File): { isValid: boolean; error?: string } {
     // Check file size (max 10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {

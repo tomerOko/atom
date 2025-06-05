@@ -1,226 +1,130 @@
-import { MongoClient, Db, Collection, ObjectId } from 'mongodb';
-import amqp, { Channel, ChannelModel } from 'amqplib';
+import { Collection, MongoClient, ObjectId } from 'mongodb';
 import { config } from '../../config/env';
-import { appLogger } from '../../packages/logger';
-import { ImageRecord, ProcessingMessage, ProcessingResult, Detection } from './types';
+import { LogAllMethods } from '../../packages/logger';
+import { RabbitMQUtils } from '../../packages/rabbitmq';
+import { ImageRecord, ProcessingRequestEvent, ProcessingResultEvent } from './validations';
 
-class HelmetDetectionMongoDAL {
-  private client: MongoClient | null = null;
-  private db: Db | null = null;
-  private imagesCollection: Collection<ImageRecord> | null = null;
+@LogAllMethods()
+export class HelmetDetectionMongoDAL {
+  private static client: MongoClient | null = null;
+  private static readonly dbName = config.MONGODB_DB_NAME;
+  private static readonly imageRecordCollectionName = 'helmet_images';
 
-  async initialize(): Promise<void> {
-    try {
-      this.client = new MongoClient(config.MONGODB_URI);
-      await this.client.connect();
-      this.db = this.client.db(config.MONGODB_DB_NAME);
-      this.imagesCollection = this.db.collection<ImageRecord>('helmet_images');
+  public static async initialize(): Promise<void> {
+    this.client = await MongoClient.connect(config.MONGODB_URI);
 
-      // Create indexes
-      await this.imagesCollection.createIndex({ filename: 1 });
-      await this.imagesCollection.createIndex({ uploadedAt: -1 });
-      await this.imagesCollection.createIndex({ processingStatus: 1 });
-
-      appLogger.info('Helmet Detection MongoDB DAL initialized');
-    } catch (error) {
-      appLogger.error('Failed to initialize Helmet Detection MongoDB DAL:', error);
-      throw error;
-    }
+    // Create indexes
+    const imageRecordCollection = this.getImageRecordCollection();
+    await imageRecordCollection.createIndex({ filename: 1 });
+    await imageRecordCollection.createIndex({ uploadedAt: -1 });
+    await imageRecordCollection.createIndex({ processingStatus: 1 });
   }
 
-  async createImageRecord(imageData: Omit<ImageRecord, '_id'>): Promise<string> {
-    if (!this.imagesCollection) {
-      throw new Error('MongoDB not initialized');
+  private static getImageRecordCollection(): Collection<ImageRecord> {
+    if (!this.client) {
+      throw new Error('HelmetDetectionMongoDAL not initialized');
     }
-
-    try {
-      const result = await this.imagesCollection.insertOne(imageData);
-      appLogger.info(`Created image record: ${result.insertedId}`);
-      return result.insertedId.toString();
-    } catch (error) {
-      appLogger.error('Failed to create image record:', error);
-      throw error;
-    }
+    return this.client.db(this.dbName).collection(this.imageRecordCollectionName);
   }
 
-  async getImageRecord(id: string): Promise<ImageRecord | null> {
-    if (!this.imagesCollection) {
-      throw new Error('MongoDB not initialized');
-    }
-
-    try {
-      const result = await this.imagesCollection.findOne({ _id: new ObjectId(id) } as any);
-      return result;
-    } catch (error) {
-      appLogger.error('Failed to get image record:', error);
-      throw error;
-    }
+  public static async createImageRecord(imageData: Omit<ImageRecord, '_id'>): Promise<string> {
+    const collection = this.getImageRecordCollection();
+    const result = await collection.insertOne(imageData);
+    return result.insertedId.toString();
   }
 
-  async getImageRecordByFilename(filename: string): Promise<ImageRecord | null> {
-    if (!this.imagesCollection) {
-      throw new Error('MongoDB not initialized');
-    }
-
-    try {
-      const result = await this.imagesCollection.findOne({ filename });
-      return result;
-    } catch (error) {
-      appLogger.error('Failed to get image record by filename:', error);
-      throw error;
-    }
+  public static async getImageRecord(id: string): Promise<ImageRecord | null> {
+    const collection = this.getImageRecordCollection();
+    const result = await collection.findOne({ _id: new ObjectId(id) } as any);
+    return result;
   }
 
-  async getAllImageRecords(
+  public static async getAllImageRecords(
     limit: number = 50,
     offset: number = 0
   ): Promise<{ images: ImageRecord[]; total: number }> {
-    if (!this.imagesCollection) {
-      throw new Error('MongoDB not initialized');
-    }
+    const collection = this.getImageRecordCollection();
+    const total = await collection.countDocuments();
+    const images = await collection
+      .find({})
+      .sort({ uploadedAt: -1 })
+      .skip(offset)
+      .limit(limit)
+      .toArray();
 
-    try {
-      const total = await this.imagesCollection.countDocuments();
-      const images = await this.imagesCollection
-        .find({})
-        .sort({ uploadedAt: -1 })
-        .skip(offset)
-        .limit(limit)
-        .toArray();
-
-      return { images, total };
-    } catch (error) {
-      appLogger.error('Failed to get all image records:', error);
-      throw error;
-    }
+    return { images, total };
   }
 
-  async updateImageProcessingResult(imageId: string, result: ProcessingResult): Promise<void> {
-    if (!this.imagesCollection) {
-      throw new Error('MongoDB not initialized');
-    }
+  public static async updateImageProcessingResult(
+    imageId: string,
+    result: ProcessingResultEvent
+  ): Promise<void> {
+    const collection = this.getImageRecordCollection();
 
-    try {
-      const detections: Detection[] = result.detections.map(d => ({
-        bbox: d.bbox,
-        confidence: d.confidence,
-        hasHelmet: d.has_helmet,
-        helmetConfidence: d.helmet_confidence,
-        status: d.status as 'wearing_helmet' | 'no_helmet',
-      }));
+    const detections = result.detections.map(d => ({
+      bbox: d.bbox,
+      confidence: d.confidence,
+      hasHelmet: d.has_helmet,
+      helmetConfidence: d.helmet_confidence,
+      status: d.status as 'wearing_helmet' | 'no_helmet',
+    }));
 
-      const updateData: Partial<ImageRecord> = {
-        processingStatus: result.processing_status as 'completed' | 'failed',
-        annotatedFilename: result.annotated_filename,
-        totalPeople: result.total_people,
-        peopleWithHelmets: result.people_with_helmets,
-        complianceRate: result.compliance_rate,
-        detections,
-        processedAt: new Date(),
-        error: result.error,
-      };
+    const updateData: Partial<ImageRecord> = {
+      processingStatus: result.processing_status,
+      annotatedFilename: result.annotated_filename,
+      totalPeople: result.total_people,
+      peopleWithHelmets: result.people_with_helmets,
+      complianceRate: result.compliance_rate,
+      detections,
+      processedAt: new Date(),
+      error: result.error,
+    };
 
-      await this.imagesCollection.updateOne({ _id: new ObjectId(imageId) } as any, {
-        $set: updateData,
-      });
-
-      appLogger.info(`Updated image processing result for: ${imageId}`);
-    } catch (error) {
-      appLogger.error('Failed to update image processing result:', error);
-      throw error;
-    }
+    await collection.updateOne({ _id: new ObjectId(imageId) } as any, {
+      $set: updateData,
+    });
   }
 
-  async updateProcessingStatus(
+  public static async updateProcessingStatus(
     imageId: string,
     status: 'pending' | 'processing' | 'completed' | 'failed'
   ): Promise<void> {
-    if (!this.imagesCollection) {
-      throw new Error('MongoDB not initialized');
-    }
-
-    try {
-      await this.imagesCollection.updateOne({ _id: new ObjectId(imageId) } as any, {
-        $set: { processingStatus: status },
-      });
-
-      appLogger.info(`Updated processing status for ${imageId}: ${status}`);
-    } catch (error) {
-      appLogger.error('Failed to update processing status:', error);
-      throw error;
-    }
-  }
-
-  async close(): Promise<void> {
-    if (this.client) {
-      await this.client.close();
-      appLogger.info('Helmet Detection MongoDB DAL closed');
-    }
+    const collection = this.getImageRecordCollection();
+    await collection.updateOne({ _id: new ObjectId(imageId) } as any, {
+      $set: { processingStatus: status },
+    });
   }
 }
 
-class HelmetDetectionRabbitMQDAL {
-  private connection: ChannelModel | null = null;
-  private channel: Channel | null = null;
-  private readonly IMAGE_PROCESSING_QUEUE = 'image_processing';
-  private readonly PROCESSING_RESULTS_QUEUE = 'processing_results';
+@LogAllMethods()
+export class HelmetDetectionRabbitMQDAL {
+  //publishers:
+  private static readonly IMAGE_PROCESSING_EXCHANGE = 'helmet_detection_image_processing_exchange';
 
-  async initialize(): Promise<void> {
-    try {
-      this.connection = await amqp.connect(config.RABBITMQ_URL);
-      this.channel = await this.connection.createChannel();
+  //consumers:
+  private static readonly PROCESSING_RESULTS_EXCHANGE = 'ai_service_processing_results_exchange';
+  private static readonly PROCESSING_RESULTS_QUEUE = 'helmet_detection_processing_results_queue';
 
-      // Declare queues
-      await this.channel.assertQueue(this.IMAGE_PROCESSING_QUEUE, { durable: true });
-      await this.channel.assertQueue(this.PROCESSING_RESULTS_QUEUE, { durable: true });
+  public static async initialize(): Promise<void> {
+    await RabbitMQUtils.ensureExchange(this.IMAGE_PROCESSING_EXCHANGE);
 
-      appLogger.info('Helmet Detection RabbitMQ DAL initialized');
-    } catch (error) {
-      appLogger.error('Failed to initialize Helmet Detection RabbitMQ DAL:', error);
-      throw error;
-    }
+    await RabbitMQUtils.ensureExchange(this.PROCESSING_RESULTS_EXCHANGE);
+    await RabbitMQUtils.ensureQueue(this.PROCESSING_RESULTS_QUEUE);
+    await RabbitMQUtils.bindQueueToExchange(
+      this.PROCESSING_RESULTS_QUEUE,
+      this.PROCESSING_RESULTS_EXCHANGE
+    );
   }
 
-  async publishProcessingRequest(message: ProcessingMessage): Promise<void> {
-    if (!this.channel) {
-      throw new Error('RabbitMQ not initialized');
-    }
-
-    try {
-      const messageBuffer = Buffer.from(JSON.stringify(message));
-      await this.channel.sendToQueue(this.IMAGE_PROCESSING_QUEUE, messageBuffer, {
-        persistent: true,
-      });
-
-      appLogger.info(`Published processing request for image: ${message.image_filename}`);
-    } catch (error) {
-      appLogger.error('Failed to publish processing request:', error);
-      throw error;
-    }
+  public static async consumeProcessingResults(callback: (msg: Record<string, any>) => void) {
+    await RabbitMQUtils.consume(this.PROCESSING_RESULTS_QUEUE, callback);
   }
 
-  getChannel(): Channel | null {
-    return this.channel;
-  }
-
-  getResultsQueueName(): string {
-    return this.PROCESSING_RESULTS_QUEUE;
-  }
-
-  async close(): Promise<void> {
-    try {
-      if (this.channel) {
-        await this.channel.close();
-      }
-      if (this.connection) {
-        await this.connection.close();
-      }
-      appLogger.info('Helmet Detection RabbitMQ DAL closed');
-    } catch (error) {
-      appLogger.error('Error closing RabbitMQ connection:', error);
-    }
+  public static async publishProcessingRequest(payload: ProcessingRequestEvent) {
+    await RabbitMQUtils.publish(this.IMAGE_PROCESSING_EXCHANGE, payload);
   }
 }
 
-export const helmetDetectionMongoDAL = new HelmetDetectionMongoDAL();
-export const helmetDetectionRabbitMQDAL = new HelmetDetectionRabbitMQDAL();
+// Export singletons
+export const helmetDetectionMongoDAL = HelmetDetectionMongoDAL;
+export const helmetDetectionRabbitMQDAL = HelmetDetectionRabbitMQDAL;

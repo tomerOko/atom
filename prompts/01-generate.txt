@@ -1,7 +1,8 @@
+create a production ready application! no shortcuts! no mocks! create the real thing!
 build, run, and test the sytem!
 i expect of a lot of new files, infra updates, runing, testing
 it is a very big task, but keep it simple!
-good luck
+good luck!
 
 Your task is to create this project description in this existing project bilerplate (create the backend flows in the ‘backend’ folder,  the client application in the ‘client’ folder, and add new folder for the image proccessing ai models  and services)
 

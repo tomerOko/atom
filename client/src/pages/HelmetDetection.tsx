@@ -5,7 +5,7 @@ import { ImageGallery } from '../shared/components/ImageGallery';
 import { StatsPanel } from '../shared/components/StatsPanel';
 import { ImageDetailModal } from '../shared/components/ImageDetailModal';
 import { useHelmetDetection } from '../shared/hooks/useHelmetDetection';
-import { ImageRecord } from '../shared/types/helmet-detection';
+import type { ImageRecord } from '../shared/types/helmet-detection';
 
 const Container = styled.div`
   min-height: 100vh;
