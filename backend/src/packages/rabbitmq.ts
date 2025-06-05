@@ -1,7 +1,6 @@
 import amqp, { Channel, ChannelModel, ConsumeMessage } from 'amqplib';
 import { appLogger, LogAllMethods } from './logger';
 import { getTransactionId, setTransactionId } from './logger/async-hooks';
-import { JwtUtils } from './jwt';
 
 @LogAllMethods()
 export class RabbitMQUtils {
@@ -56,12 +55,7 @@ export class RabbitMQUtils {
     if (!RabbitMQUtils.channel) {
       throw new Error('RabbitMQ channel not initialized');
     }
-    const metadata = {
-      transactionId: getTransactionId(),
-      userId: JwtUtils.getUserId(),
-    };
     const message = {
-      metadata,
       data: content,
     };
     const messageBuffer = Buffer.from(JSON.stringify(message));
@@ -77,23 +71,10 @@ export class RabbitMQUtils {
         const content = msg.content.toString();
         const parsedContent = JSON.parse(content);
 
-        RabbitMQUtils.handleMetadata(parsedContent);
-
         callback(parsedContent);
         RabbitMQUtils.channel?.ack(msg);
       }
     });
-  }
-
-  private static handleMetadata(parsedContent: any) {
-    // client never publish rabbitmq messages, only services, so we can rely on the publisher metadata
-    const { transactionId, userId } = parsedContent.metadata;
-    if (!transactionId || !userId) {
-      throw new Error('Invalid message received from queue, no transactionId or userId');
-    }
-    delete parsedContent.metadata;
-    setTransactionId(transactionId);
-    JwtUtils.setUserId(userId);
   }
 
   static async close() {

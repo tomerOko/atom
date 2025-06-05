@@ -36,7 +36,13 @@ export class HelmetDetectionMongoDAL {
   public static async getImageRecord(id: string): Promise<ImageRecord | null> {
     const collection = this.getImageRecordCollection();
     const result = await collection.findOne({ _id: new ObjectId(id) } as any);
-    return result;
+    if (!result) return null;
+
+    // Convert ObjectId to string
+    return {
+      ...result,
+      _id: result._id.toString(),
+    };
   }
 
   public static async getAllImageRecords(
@@ -45,12 +51,18 @@ export class HelmetDetectionMongoDAL {
   ): Promise<{ images: ImageRecord[]; total: number }> {
     const collection = this.getImageRecordCollection();
     const total = await collection.countDocuments();
-    const images = await collection
+    const rawImages = await collection
       .find({})
       .sort({ uploadedAt: -1 })
       .skip(offset)
       .limit(limit)
       .toArray();
+
+    // Convert ObjectIds to strings
+    const images = rawImages.map(image => ({
+      ...image,
+      _id: image._id.toString(),
+    }));
 
     return { images, total };
   }

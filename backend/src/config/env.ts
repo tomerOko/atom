@@ -28,8 +28,6 @@ const configSchema = z.object({
   PACKAGE_PREFIX: z.string(),
   MONGODB_URI: z.string(),
   MONGODB_DB_NAME: z.string().default('helmet_detection'),
-  LOGSTASH_URL: z.string(),
-  APM_SERVER_URL: z.string(),
   OPENAI_API_KEY: z.string(),
   JWT_SECRET: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),

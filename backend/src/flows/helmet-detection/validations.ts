@@ -1,5 +1,48 @@
 import { z } from 'zod';
 
+// Base Schemas
+const processingStatusSchema = z.enum(['pending', 'processing', 'completed', 'failed']);
+
+const bboxSchema = z.tuple([z.number(), z.number(), z.number(), z.number()]);
+
+const helmetStatusSchema = z.enum(['wearing_helmet', 'no_helmet']);
+
+// Detection schemas (API format - camelCase)
+const detectionSchema = z.object({
+  bbox: bboxSchema,
+  confidence: z.number(),
+  hasHelmet: z.boolean(),
+  helmetConfidence: z.number(),
+  status: helmetStatusSchema,
+});
+
+// Detection schema for events (snake_case)
+const eventDetectionSchema = z.object({
+  bbox: bboxSchema,
+  confidence: z.number(),
+  has_helmet: z.boolean(),
+  helmet_confidence: z.number(),
+  status: z.string(),
+});
+
+// Base image schema with common fields
+const baseImageSchema = z.object({
+  _id: z.string().optional(),
+  filename: z.string(),
+  originalName: z.string(),
+  mimeType: z.string(),
+  size: z.number(),
+  uploadedAt: z.date(),
+  processingStatus: processingStatusSchema,
+  annotatedFilename: z.string().optional(),
+  totalPeople: z.number().optional(),
+  peopleWithHelmets: z.number().optional(),
+  complianceRate: z.number().optional(),
+  detections: z.array(detectionSchema).optional(),
+  error: z.string().optional(),
+  processedAt: z.date().optional(),
+});
+
 // HTTP Request/Response Schemas
 export const uploadImageResponseSchema = z.object({
   imageId: z.string(),
@@ -19,65 +62,13 @@ export const getImageByIdRequestSchema = z.object({
 export type GetImageByIdRequest = z.infer<typeof getImageByIdRequestSchema>;
 
 export const getImagesResponseSchema = z.object({
-  images: z.array(
-    z.object({
-      _id: z.string().optional(),
-      filename: z.string(),
-      originalName: z.string(),
-      mimeType: z.string(),
-      size: z.number(),
-      uploadedAt: z.date(),
-      processingStatus: z.enum(['pending', 'processing', 'completed', 'failed']),
-      annotatedFilename: z.string().optional(),
-      totalPeople: z.number().optional(),
-      peopleWithHelmets: z.number().optional(),
-      complianceRate: z.number().optional(),
-      detections: z
-        .array(
-          z.object({
-            bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
-            confidence: z.number(),
-            hasHelmet: z.boolean(),
-            helmetConfidence: z.number(),
-            status: z.enum(['wearing_helmet', 'no_helmet']),
-          })
-        )
-        .optional(),
-      error: z.string().optional(),
-      processedAt: z.date().optional(),
-    })
-  ),
+  images: z.array(baseImageSchema),
   total: z.number(),
 });
 export type GetImagesResponse = z.infer<typeof getImagesResponseSchema>;
 
 export const getImageByIdResponseSchema = z.object({
-  image: z.object({
-    _id: z.string().optional(),
-    filename: z.string(),
-    originalName: z.string(),
-    mimeType: z.string(),
-    size: z.number(),
-    uploadedAt: z.date(),
-    processingStatus: z.enum(['pending', 'processing', 'completed', 'failed']),
-    annotatedFilename: z.string().optional(),
-    totalPeople: z.number().optional(),
-    peopleWithHelmets: z.number().optional(),
-    complianceRate: z.number().optional(),
-    detections: z
-      .array(
-        z.object({
-          bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
-          confidence: z.number(),
-          hasHelmet: z.boolean(),
-          helmetConfidence: z.number(),
-          status: z.enum(['wearing_helmet', 'no_helmet']),
-        })
-      )
-      .optional(),
-    error: z.string().optional(),
-    processedAt: z.date().optional(),
-  }),
+  image: baseImageSchema,
   originalImageUrl: z.string().optional(),
   annotatedImageUrl: z.string().optional(),
 });
@@ -96,31 +87,8 @@ export const imageStatsResponseSchema = z.object({
 export type ImageStatsResponse = z.infer<typeof imageStatsResponseSchema>;
 
 // Database Schemas
-export const imageRecordSchema = z.object({
-  _id: z.string().optional(),
-  filename: z.string(),
-  originalName: z.string(),
-  mimeType: z.string(),
-  size: z.number(),
-  uploadedAt: z.date(),
-  processingStatus: z.enum(['pending', 'processing', 'completed', 'failed']),
-  annotatedFilename: z.string().optional(),
-  totalPeople: z.number().optional(),
-  peopleWithHelmets: z.number().optional(),
-  complianceRate: z.number().optional(),
-  detections: z
-    .array(
-      z.object({
-        bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
-        confidence: z.number(),
-        hasHelmet: z.boolean(),
-        helmetConfidence: z.number(),
-        status: z.enum(['wearing_helmet', 'no_helmet']),
-      })
-    )
-    .optional(),
-  error: z.string().optional(),
-  processedAt: z.date().optional(),
+export const imageRecordSchema = baseImageSchema.extend({
+  _id: z.string().optional(), // Override to make _id optional for database inserts
 });
 export type ImageRecord = z.infer<typeof imageRecordSchema>;
 
@@ -141,15 +109,7 @@ export const processingResultEventSchema = z.object({
   total_people: z.number(),
   people_with_helmets: z.number(),
   compliance_rate: z.number(),
-  detections: z.array(
-    z.object({
-      bbox: z.tuple([z.number(), z.number(), z.number(), z.number()]),
-      confidence: z.number(),
-      has_helmet: z.boolean(),
-      helmet_confidence: z.number(),
-      status: z.string(),
-    })
-  ),
+  detections: z.array(eventDetectionSchema),
   error: z.string().optional(),
   timestamp: z.string(),
 });

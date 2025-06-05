@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "amqplib": "^0.10.8",
+    "minio": "^8.0.5",
+    "mongodb": "^6.17.0"
+  }
+}
