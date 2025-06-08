@@ -98,4 +98,4 @@ Copy the example environment files and configure:
 
 - **MongoDB**: admin/password
 - **RabbitMQ**: guest/guest (Management UI: http://localhost:15672)
-- **MinIO**: minioadmin/minioadmin (Console: http://localhost:9001) 
+- **MinIO**: minioadmin/minioadmin (Console: http://localhost:9001) .
