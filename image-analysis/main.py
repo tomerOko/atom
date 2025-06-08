@@ -34,9 +34,6 @@ class HelmetDetectionService:
             # Initialize message handler
             self.message_handler = MessageHandler()
             logger.info("Message handler initialized")
-
-            # Download and initialize YOLO model
-            self.setup_model()
             
             # Initialize helmet detector
             self.detector = HelmetDetector(
@@ -49,20 +46,6 @@ class HelmetDetectionService:
         except Exception as e:
             logger.error(f"Failed to setup services: {e}")
             raise
-
-    def setup_model(self):
-        """
-        Download YOLO model if it doesn't exist
-        """
-        os.makedirs('./models', exist_ok=True)
-        
-        if not os.path.exists(MODEL_PATH):
-            logger.info("Downloading YOLO model...")
-            # This will automatically download the model
-            from ultralytics import YOLO
-            model = YOLO('yolov8n.pt')  # This downloads the model
-            model.save('./models/yolov8n.pt')
-            logger.info("YOLO model downloaded and saved")
 
     def process_image_request(self, message: Dict) -> Dict:
         """

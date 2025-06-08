@@ -18,7 +18,7 @@ MINIO_BUCKET = os.getenv('MINIO_BUCKET', 'helmet-detection')
 
 # Model Configuration
 MODEL_PATH = os.getenv('MODEL_PATH', './models/yolov8n.pt')
-CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', '0.5'))
+CONFIDENCE_THRESHOLD = float(os.getenv('CONFIDENCE_THRESHOLD', '0.25'))
 IOU_THRESHOLD = float(os.getenv('IOU_THRESHOLD', '0.4'))
 
 # RabbitMQ Exchange and Queue Configuration

@@ -1,5 +1,4 @@
 final tasks:
-1. update the docker-compose.yml so that the minio dose not require authentication (currently blocking the frontend from accessing the minio duo to CORS)
 1. update the readme.md with the new setup steps (setup.sh, run-dev.sh, run-prod.sh)
 2. if not exists or not updated, add explanations of design choices in the README.
 3. dd GitHub Actions for linting/tests/build.
