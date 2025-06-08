@@ -32,7 +32,7 @@ node test-connectivity.js
 
 #### AI Service connectivity test:
 ```bash
-cd ai-service
+cd image-analysis
 # Create virtual environment (first time only)
 python3 -m venv .venv
 source .venv/bin/activate
@@ -58,13 +58,13 @@ The backend will:
 
 #### AI Service
 ```bash
-cd ai-service
+cd image-analysis
 source .venv/bin/activate  # Activate virtual environment
 python main.py
 ```
 
 The AI service will:
-- Load environment variables from `ai-service/local.env`
+- Load environment variables from `image-analysis/local.env`
 - Connect to localhost instances of RabbitMQ and MinIO
 - Listen for image processing requests
 
@@ -82,12 +82,12 @@ To debug:
 4. Select "Debug with Nodemon" or "Debug TypeScript Backend"
 
 ### AI Service Debugging
-The AI service has debugging configurations in `ai-service/.vscode/launch.json`:
+The AI service has debugging configurations in `image-analysis/.vscode/launch.json`:
 - **Debug AI Service**: Uses virtual environment Python
 - **Debug AI Service (System Python)**: Uses system Python
 
 To debug:
-1. Open VS Code in the `ai-service` directory
+1. Open VS Code in the `image-analysis` directory
 2. Ensure the virtual environment is created (`python3 -m venv .venv`)
 3. Set breakpoints in your Python code
 4. Press `F5` or use the Debug panel
@@ -100,7 +100,7 @@ To debug:
 - RabbitMQ: `amqp://guest:guest@localhost:5672`
 - MinIO: `localhost:9000` with credentials `minioadmin:minioadmin`
 
-### AI Service (`ai-service/local.env`)
+### AI Service (`image-analysis/local.env`)
 - RabbitMQ: `localhost:5672` with credentials `guest:guest`
 - MinIO: `localhost:9000` with credentials `minioadmin:minioadmin`
 
@@ -161,8 +161,8 @@ Remember to update the environment files accordingly.
 ### Python Virtual Environment Issues
 ```bash
 # Recreate virtual environment
-rm -rf ai-service/.venv
-cd ai-service
+rm -rf image-analysis/.venv
+cd image-analysis
 python3 -m venv .venv
 source .venv/bin/activate
 pip install python-dotenv pika minio
@@ -173,6 +173,6 @@ pip install python-dotenv pika minio
 1. Start infrastructure: `docker-compose -f docker-compose.dev.yml up -d`
 2. Test connectivity with provided scripts
 3. Start backend in one terminal: `cd backend && npm run dev`
-4. Start AI service in another terminal: `cd ai-service && source .venv/bin/activate && python main.py`
+4. Start AI service in another terminal: `cd image-analysis && source .venv/bin/activate && python main.py`
 5. Debug using VS Code configurations as needed
 6. Stop infrastructure when done: `docker-compose -f docker-compose.dev.yml down` 

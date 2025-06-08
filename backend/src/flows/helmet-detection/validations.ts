@@ -41,6 +41,7 @@ const baseImageSchema = z.object({
   detections: z.array(detectionSchema).optional(),
   error: z.union([z.string(), z.null()]).optional(),
   processedAt: z.date().optional(),
+  thumbnailUrl: z.string().optional(),
 });
 
 // HTTP Request/Response Schemas

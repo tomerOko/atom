@@ -1,0 +1,3 @@
+when running 'docker-compose.dev.yml' and then starting image-analysis and the backend with the debuggers (see lounch.json) everything works fine
+
+but wen runing everything from the docker componse 'docker-compose.yml' the client is unable to fetch

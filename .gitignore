@@ -3,3 +3,14 @@
 *dist
 /client/package-lock.json
 /backend/package-lock.json
+
+# python
+__pycache__/
+.venv/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw

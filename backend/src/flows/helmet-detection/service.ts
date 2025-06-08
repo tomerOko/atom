@@ -66,25 +66,14 @@ class HelmetDetectionService {
     try {
       const result = await helmetDetectionMongoDAL.getAllImageRecords(limit, offset);
 
-      // Generate thumbnail URLs for each image
-      const imagesWithThumbnails = await Promise.all(
-        result.images.map(async image => {
-          try {
-            const thumbnailUrl = await MinioUtils.getPresignedUrl(
-              'helmet-detection',
-              image.filename,
-              3600
-            ); // 1 hour expiry
-            return {
-              ...image,
-              thumbnailUrl,
-            };
-          } catch (error) {
-            appLogger.warn(`Failed to get thumbnail URL for image: ${image.filename}`);
-            return image; // Return without thumbnail URL if failed
-          }
-        })
-      );
+      // Generate simple public URLs for each image instead of signed URLs
+      const imagesWithThumbnails = result.images.map(image => {
+        const thumbnailUrl = `http://localhost:9000/helmet-detection/${image.filename}`;
+        return {
+          ...image,
+          thumbnailUrl,
+        };
+      });
 
       return {
         images: imagesWithThumbnails,
@@ -104,27 +93,12 @@ class HelmetDetectionService {
         throw new Error('Image not found');
       }
 
-      // Generate presigned URLs for images
-      let originalImageUrl: string | undefined;
+      // Generate simple public URLs instead of signed URLs
+      const originalImageUrl = `http://localhost:9000/helmet-detection/${image.filename}`;
       let annotatedImageUrl: string | undefined;
 
-      try {
-        originalImageUrl = await MinioUtils.getPresignedUrl('helmet-detection', image.filename);
-      } catch (error) {
-        appLogger.warn(`Failed to get presigned URL for original image: ${image.filename}`);
-      }
-
       if (image.annotatedFilename) {
-        try {
-          annotatedImageUrl = await MinioUtils.getPresignedUrl(
-            'helmet-detection',
-            image.annotatedFilename
-          );
-        } catch (error) {
-          appLogger.warn(
-            `Failed to get presigned URL for annotated image: ${image.annotatedFilename}`
-          );
-        }
+        annotatedImageUrl = `http://localhost:9000/helmet-detection/${image.annotatedFilename}`;
       }
 
       return {

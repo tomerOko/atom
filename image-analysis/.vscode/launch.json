@@ -13,16 +13,5 @@
             "stopOnEntry": false,
             "python": "${workspaceFolder}/.venv/bin/python"
         },
-        {
-            "name": "Debug AI Service (System Python)",
-            "type": "python",
-            "request": "launch",
-            "program": "${workspaceFolder}/main.py",
-            "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/local.env",
-            "cwd": "${workspaceFolder}",
-            "args": [],
-            "stopOnEntry": false
-        }
     ]
 } 

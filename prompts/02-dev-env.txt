@@ -1,7 +1,7 @@
-i want to run and debug the client backend and the ai-service locally, but connect to the resources of the docker compose (minio, rabbit, mongo)
+i want to run and debug the client backend and the image-analysis locally, but connect to the resources of the docker compose (minio, rabbit, mongo)
 
-1. create additional docker-compose for dev (exactly the same just dose not run the frontend, backend, and ai-service).
-2. make sure the backend and ai-service that are running localy can connect to the docker-compose resources (simply ping the resources to make sure they are availble).
-3. creatre environment variables files for the backend and ai-service.
-4. make sure the backend and the ai-service are loading their environment varibales files
-5. create debugging configuration for the ai-service and explain to me how to run it
+1. create additional docker-compose for dev (exactly the same just dose not run the frontend, backend, and image-analysis).
+2. make sure the backend and image-analysis that are running localy can connect to the docker-compose resources (simply ping the resources to make sure they are availble).
+3. creatre environment variables files for the backend and image-analysis.
+4. make sure the backend and the image-analysis are loading their environment varibales files
+5. create debugging configuration for the image-analysis and explain to me how to run it

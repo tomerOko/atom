@@ -170,11 +170,14 @@ export class MinioUtils {
     }
 
     try {
-      return await this.client.presignedGetObject(
+      const url = await this.client.presignedGetObject(
         this.bucketName,
         this.getFileName(id),
         expiryInSeconds
       );
+
+      // Replace internal Docker service name with localhost for browser access
+      return url.replace('http://minio:9000', 'http://localhost:9000');
     } catch (error) {
       console.error(`Error getting URL for file ${id} from ${this.bucketName}:`, error);
       throw error;
@@ -196,7 +199,10 @@ export class MinioUtils {
     }
 
     try {
-      return await this.client.presignedGetObject(bucketName, filename, expiryInSeconds);
+      const url = await this.client.presignedGetObject(bucketName, filename, expiryInSeconds);
+
+      // Replace internal Docker service name with localhost for browser access
+      return url.replace('http://minio:9000', 'http://localhost:9000');
     } catch (error) {
       console.error(`Error getting URL for file ${filename} from ${bucketName}:`, error);
       throw error;
