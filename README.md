@@ -2,100 +2,63 @@
 
 A comprehensive full-stack project template with React frontend, Node.js backend, and Docker services.
 
-## Architecture
+## Setup and Running
 
-This template provides a complete project structure with:
-
-- **Frontend**: React + TypeScript + Vite
-- **Backend**: Node.js + Express + TypeScript
-- **Infrastructure**: Docker Compose with MongoDB, RabbitMQ, and MinIO
-- **Example Flow**: Complete CRUD operations with users as an example
-
-## Services
-
-The template includes the following services via Docker Compose:
-
-- **MongoDB** (Port 27017) - Database
-- **RabbitMQ** (Port 5672, Management UI: 15672) - Message queue
-- **MinIO** (Port 9000, Console: 9001) - Object storage
-
-## Getting Started
-
-1. **Start the infrastructure**:
+### Quick Production Setup
+For fast setup and running everything in Docker:
 ```bash
-docker-compose up -d
+chmod +x setup.sh run-prod.sh
+./setup.sh    # Install dependencies
+./run-prod.sh # Run everything in Docker
 ```
 
-2. **Backend setup**:
+### Development Setup (with debugging)
+For development with individual service debugging:
 ```bash
-cd backend
-npm install
-npm run dev
+chmod +x setup.sh run-dev.sh
+./setup.sh    # Install dependencies
+./run-dev.sh  # Start infrastructure only
 ```
 
-3. **Frontend setup**:
-```bash
-cd client
-npm install
-npm run dev
-```
+Then run services individually for debugging:
+- **Backend**: Open `backend/` in your (vscode based) IDE, run the debugger and start coding :)
+- **Frontend**: `cd client && npm run dev`
+- **Image Analysis**: Open `ai-service/` in your (vscode based) IDE, run the debugger and start coding :)
 
-## Project Structure
+### Services
+- **MongoDB**: localhost:27017 (admin/password)
+- **RabbitMQ**: localhost:5672, Management UI: localhost:15672 (guest/guest)
+- **MinIO**: localhost:9000, Console: localhost:9001 (minioadmin/minioadmin)
 
-```
-├── backend/                 # Node.js backend
-│   ├── src/
-│   │   ├── flows/
-│   │   │   └── example-users/  # Example CRUD flow
-│   │   ├── packages/        # Utility packages
-│   │   ├── middleware/      # Express middleware
-│   │   └── config/         # Configuration
-│   └── envs/               # Environment files
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── pages/
-│   │   │   └── example-dashboard/  # Example page
-│   │   └── shared/         # Shared components
-└── docker-compose.yml      # Infrastructure services
-```
+## Design Choices
 
-## Backend Features
+### Backend Architecture
+**Flow-Based Organization**: Each business domain (users, orders, etc.) gets its own folder under `src/flows/` with:
+- `routes.ts` - API endpoints
+- `controller.ts` - HTTP handling
+- `service.ts` - Business logic
+- `dal.ts` - Database operations
+- `validations.ts` - Zod schemas
 
-- **Packages**: JWT, Logger, RabbitMQ, MinIO, MongoDB utilities
-- **Example Flow**: Users CRUD with API routes, services, DAL, and consumers
-- **Middleware**: Error handling, request logging
-- **Environment**: Multiple environment configurations
+**Why?** Clear separation of concerns, easy to maintain and scale, consistent structure.
 
-## Frontend Features
+**Validation-First**: All external data (API, database, events) uses Zod schemas for type safety and runtime validation.
 
-- **Example Dashboard**: Sample page showing project structure
-- **Shared Components**: Generic UI components
-- **Services**: API integration layer
-- **Routing**: React Router setup
+**MongoDB Native Driver**: Direct MongoDB access instead of ODMs for better performance and control.
 
-## Environment Variables
+### Frontend Architecture
+**Generic Components**: All UI goes through reusable components in `src/shared/components/generic/` instead of raw HTML elements.
 
-Copy the example environment files and configure:
+**Styled Components**: Component-scoped CSS instead of CSS files to prevent conflicts and enable dynamic styling.
 
-- `backend/envs/local.env` - Backend configuration
-- `client/.env` - Frontend configuration (if needed)
+**No Default Exports**: Named exports only for better IDE support and refactoring.
 
-## Example API Endpoints
+**Kebab-Case Files**: Consistent naming across all files and folders.
 
-- `GET /api/example-users` - List users
-- `POST /api/example-users` - Create user
-- `GET /health` - Health check
+### Infrastructure
+**Docker Compose**: Consistent development environment with separate configs for dev (debugging) and prod (all-in-one).
 
-## Customizing the Template
-
-1. Rename `example-users` flow to your domain
-2. Update API routes and endpoints
-3. Modify the frontend dashboard
-4. Add your business logic
-5. Configure environment variables for your services
-
-## Default Credentials
-
-- **MongoDB**: admin/password
-- **RabbitMQ**: guest/guest (Management UI: http://localhost:15672)
-- **MinIO**: minioadmin/minioadmin (Console: http://localhost:9001) .
+**Service Selection**:
+- MongoDB for flexible document storage
+- RabbitMQ for event-driven architecture
+- MinIO for S3-compatible file storage 

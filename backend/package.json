@@ -5,6 +5,7 @@
   "scripts": {
     "start": "nodemon",
     "dev": "nodemon",
+    "build": "tsc",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"**/*.{ts,json,md}\"",

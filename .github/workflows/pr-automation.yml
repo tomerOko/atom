@@ -1,0 +1,222 @@
+name: Pull Request Automation
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened, edited ]
+  pull_request_review:
+    types: [ submitted ]
+
+jobs:
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Validate PR title
+      uses: amannn/action-semantic-pull-request@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        types: |
+          feat
+          fix
+          chore
+          docs
+          style
+          refactor
+          perf
+          test
+          build
+          ci
+        requireScope: false
+
+    - name: Check PR size
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: pr } = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number
+          });
+
+          const additions = pr.additions;
+          const deletions = pr.deletions;
+          const changedFiles = pr.changed_files;
+
+          // Set size label based on changes
+          let sizeLabel = '';
+          const totalChanges = additions + deletions;
+
+          if (totalChanges <= 50) {
+            sizeLabel = 'size/xs';
+          } else if (totalChanges <= 200) {
+            sizeLabel = 'size/s';
+          } else if (totalChanges <= 500) {
+            sizeLabel = 'size/m';
+          } else if (totalChanges <= 1000) {
+            sizeLabel = 'size/l';
+          } else {
+            sizeLabel = 'size/xl';
+          }
+
+          // Add size label
+          await github.rest.issues.addLabels({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            labels: [sizeLabel]
+          });
+
+          // Add comment if PR is too large
+          if (totalChanges > 1000) {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `⚠️ This PR is quite large (${totalChanges} lines changed across ${changedFiles} files). Consider breaking it down into smaller PRs for easier review.`
+            });
+          }
+
+    - name: Auto-assign reviewers
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Auto-assign reviewers based on changed files
+          const { data: files } = await github.rest.pulls.listFiles({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number
+          });
+
+          const backendFiles = files.filter(file => file.filename.startsWith('backend/'));
+          const frontendFiles = files.filter(file => file.filename.startsWith('client/'));
+          const dockerFiles = files.filter(file => file.filename.includes('docker') || file.filename.includes('Dockerfile'));
+
+          const labels = [];
+
+          if (backendFiles.length > 0) {
+            labels.push('backend');
+          }
+
+          if (frontendFiles.length > 0) {
+            labels.push('frontend');
+          }
+
+          if (dockerFiles.length > 0) {
+            labels.push('infrastructure');
+          }
+
+          if (labels.length > 0) {
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: labels
+            });
+          }
+
+  pr-checks:
+    name: PR Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Check for merge conflicts
+      run: |
+        git fetch origin main
+        if ! git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main | grep -q "<<<<<<< "; then
+          echo "✅ No merge conflicts detected"
+        else
+          echo "❌ Merge conflicts detected"
+          exit 1
+        fi
+
+    - name: Check commit messages
+      run: |
+        # Check if commit messages follow conventional commits
+        git log --oneline origin/main..HEAD | while read commit; do
+          if ! echo "$commit" | grep -qE '^[a-f0-9]+ (feat|fix|chore|docs|style|refactor|perf|test|build|ci)(\(.+\))?: .+'; then
+            echo "❌ Commit message doesn't follow conventional commits format: $commit"
+            exit 1
+          fi
+        done
+        echo "✅ All commit messages follow conventional commits format"
+
+    - name: Generate PR summary
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: pr } = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number
+          });
+
+          const { data: files } = await github.rest.pulls.listFiles({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number
+          });
+
+          const summary = `
+          ## PR Summary 📋
+
+          **Changes:** ${pr.additions} additions, ${pr.deletions} deletions across ${pr.changed_files} files
+
+          **Modified Files:**
+          ${files.map(file => `- \`${file.filename}\` (+${file.additions} -${file.deletions})`).join('\n')}
+
+          **Review Checklist:**
+          - [ ] Code follows project style guidelines
+          - [ ] Tests have been added/updated
+          - [ ] Documentation has been updated
+          - [ ] Breaking changes are documented
+          - [ ] Environment variables are documented
+          `;
+
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: summary
+          });
+
+  auto-merge:
+    name: Auto Merge
+    runs-on: ubuntu-latest
+    needs: [ pr-validation, pr-checks ]
+    if: contains(github.event.pull_request.labels.*.name, 'auto-merge')
+
+    steps:
+    - name: Enable auto-merge
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.pulls.createReview({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number,
+            event: 'APPROVE',
+            body: '🤖 Auto-approved by GitHub Actions'
+          });
+
+          await github.rest.pulls.merge({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number,
+            commit_title: `${context.payload.pull_request.title} (#${context.issue.number})`,
+            merge_method: 'squash'
+          }); 

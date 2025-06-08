@@ -1,0 +1,133 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-format:
+    name: Linting and Formatting
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: npm ci
+
+    - name: Install frontend dependencies
+      working-directory: ./client
+      run: npm ci
+
+    - name: Run backend linting
+      working-directory: ./backend
+      run: npm run lint
+
+    - name: Run frontend linting
+      working-directory: ./client
+      run: npm run lint
+
+    - name: Check backend formatting
+      working-directory: ./backend
+      run: npm run format:check
+
+    - name: Check frontend formatting
+      working-directory: ./client
+      run: npm run format:check
+
+    - name: TypeScript compilation check (backend)
+      working-directory: ./backend
+      run: npm run build
+
+    - name: TypeScript compilation check (frontend)
+      working-directory: ./client
+      run: npm run type-check
+
+  performance-check:
+    name: Performance Check
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Install dependencies
+      run: |
+        cd backend && npm ci
+        cd ../client && npm ci
+
+    - name: Build size analysis
+      run: |
+        echo "### Build Size Analysis 📊" >> $GITHUB_STEP_SUMMARY
+
+        echo "#### Backend Build" >> $GITHUB_STEP_SUMMARY
+        cd backend
+        npm run build
+        if [ -d "dist" ]; then
+          BACKEND_SIZE=$(du -sh dist | cut -f1)
+          echo "- Backend build size: $BACKEND_SIZE" >> $GITHUB_STEP_SUMMARY
+        fi
+
+        echo "#### Frontend Build" >> $GITHUB_STEP_SUMMARY
+        cd ../client
+        npm run build
+        if [ -d "dist" ]; then
+          FRONTEND_SIZE=$(du -sh dist | cut -f1)
+          echo "- Frontend build size: $FRONTEND_SIZE" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  dependency-analysis:
+    name: Dependency Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+
+    - name: Install dependencies
+      run: |
+        cd backend && npm ci
+        cd ../client && npm ci
+
+    - name: Check for duplicate dependencies
+      run: |
+        echo "### Dependency Analysis 📦" >> $GITHUB_STEP_SUMMARY
+
+        echo "#### Backend Dependencies" >> $GITHUB_STEP_SUMMARY
+        cd backend
+        BACKEND_DEPS=$(npm list --depth=0 | wc -l)
+        echo "- Total backend dependencies: $BACKEND_DEPS" >> $GITHUB_STEP_SUMMARY
+
+        echo "#### Frontend Dependencies" >> $GITHUB_STEP_SUMMARY
+        cd ../client
+        FRONTEND_DEPS=$(npm list --depth=0 | wc -l)
+        echo "- Total frontend dependencies: $FRONTEND_DEPS" >> $GITHUB_STEP_SUMMARY
+
+    - name: License compliance check
+      run: |
+        echo "#### License Compliance" >> $GITHUB_STEP_SUMMARY
+        cd backend
+        npx license-checker --summary >> ../license-summary.txt || echo "License check failed" >> ../license-summary.txt
+        cd ../client
+        npx license-checker --summary >> ../license-summary.txt || echo "License check failed" >> ../license-summary.txt
+        cat ../license-summary.txt >> $GITHUB_STEP_SUMMARY 
